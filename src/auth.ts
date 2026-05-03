@@ -2,6 +2,7 @@ import NextAuth from "next-auth"
 import Reddit from "next-auth/providers/reddit"
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  trustHost: true,
   providers: [
     Reddit({
       clientId: process.env.AUTH_REDDIT_ID as string,
