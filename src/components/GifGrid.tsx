@@ -122,7 +122,7 @@ export default function GifGrid({ accessToken }: GifGridProps) {
     setPosts(prev => {
       // Deduplicate posts just in case Reddit returns overlapping pages
       const existingIds = new Set(prev.map(p => p.id));
-      const uniqueNewPosts = morePosts.filter(p => !existingIds.has(p.id));
+      const uniqueNewPosts = morePosts.filter((p: RedditPost) => !existingIds.has(p.id));
       return [...prev, ...uniqueNewPosts];
     });
     
