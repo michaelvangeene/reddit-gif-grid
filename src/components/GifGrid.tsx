@@ -274,12 +274,14 @@ export default function GifGrid({ accessToken }: GifGridProps) {
                     if (video) {
                       video.muted = false;
                       video.volume = 1.0;
+                      video.play().catch(() => {});
                     }
                   }}
                   onMouseLeave={(e) => {
                     const video = e.currentTarget.querySelector('video');
                     if (video) {
                       video.muted = true;
+                      video.play().catch(() => {});
                     }
                   }}
                 >
