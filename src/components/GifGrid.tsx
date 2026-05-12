@@ -33,6 +33,7 @@ export default function GifGrid({ accessToken }: GifGridProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const loadingMoreRef = useRef<boolean>(false);
   const afterRef = useRef<string | null>(null);
+  const sliderTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Sync refs for Intersection Observer inside effect
   useEffect(() => {
@@ -337,19 +338,42 @@ export default function GifGrid({ accessToken }: GifGridProps) {
 
         <div 
           style={{ position: 'relative' }}
-          onMouseEnter={() => setShowSpeedSlider(true)}
-          onMouseLeave={() => setShowSpeedSlider(false)}
+          onMouseEnter={() => {
+            if (sliderTimeoutRef.current) clearTimeout(sliderTimeoutRef.current);
+            setShowSpeedSlider(true);
+          }}
+          onMouseLeave={() => {
+            sliderTimeoutRef.current = setTimeout(() => setShowSpeedSlider(false), 2000);
+          }}
         >
           <button 
             className={`floating-btn ${scrollSpeed > 0 ? 'active' : ''}`}
-            onClick={togglePlayPause}
+            onClick={() => {
+              togglePlayPause();
+              setShowSpeedSlider(true);
+              if (sliderTimeoutRef.current) clearTimeout(sliderTimeoutRef.current);
+              sliderTimeoutRef.current = setTimeout(() => setShowSpeedSlider(false), 2000);
+            }}
             title={scrollSpeed > 0 ? "Pause" : "Play"}
           >
             {scrollSpeed > 0 ? <Pause size={24} /> : <Play size={24} />}
           </button>
           
           {showSpeedSlider && (
-            <div className="speed-slider-container">
+            <div 
+              className="speed-slider-container"
+              onWheel={(e) => {
+                e.preventDefault();
+                const delta = (e.deltaX !== 0 ? e.deltaX : e.deltaY) * -0.01;
+                const currentVal = scrollSpeed > 0 ? scrollSpeed : lastSpeed;
+                const newVal = Math.max(0, Math.min(10, currentVal + delta));
+                setScrollSpeed(Number(newVal.toFixed(1)));
+                if (newVal > 0) setLastSpeed(Number(newVal.toFixed(1)));
+                // Reset auto-hide timer on interaction
+                if (sliderTimeoutRef.current) clearTimeout(sliderTimeoutRef.current);
+                sliderTimeoutRef.current = setTimeout(() => setShowSpeedSlider(false), 2000);
+              }}
+            >
               <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>Speed</span>
               <input 
                 type="range" 
@@ -361,6 +385,9 @@ export default function GifGrid({ accessToken }: GifGridProps) {
                   const val = Number(e.target.value);
                   setScrollSpeed(val);
                   if (val > 0) setLastSpeed(val);
+                  // Reset auto-hide timer on interaction
+                  if (sliderTimeoutRef.current) clearTimeout(sliderTimeoutRef.current);
+                  sliderTimeoutRef.current = setTimeout(() => setShowSpeedSlider(false), 2000);
                 }}
                 style={{ width: '120px', cursor: 'ew-resize' }}
               />
