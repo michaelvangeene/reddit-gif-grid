@@ -269,6 +269,19 @@ export default function GifGrid({ accessToken }: GifGridProps) {
                   rel="noopener noreferrer"
                   className="gif-card"
                   style={{ display: 'block' }}
+                  onMouseEnter={(e) => {
+                    const video = e.currentTarget.querySelector('video');
+                    if (video) {
+                      video.muted = false;
+                      video.volume = 1.0;
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    const video = e.currentTarget.querySelector('video');
+                    if (video) {
+                      video.muted = true;
+                    }
+                  }}
                 >
                   {isVideo ? (
                     <video 

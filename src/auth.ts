@@ -8,7 +8,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       clientId: process.env.AUTH_REDDIT_ID as string,
       clientSecret: process.env.AUTH_REDDIT_SECRET as string,
       authorization: {
-        url: "https://www.reddit.com/api/v1/authorize",
+        url: "https://old.reddit.com/api/v1/authorize",
         params: {
           duration: 'permanent',
           scope: 'identity history read',
