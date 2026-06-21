@@ -237,6 +237,7 @@ h1, h2, h3, h4, h5, h6 {
   right: 2rem;
   display: flex;
   flex-direction: column;
+  align-items: flex-end;
   gap: 1rem;
   z-index: 100;
 }
@@ -301,3 +302,88 @@ h1, h2, h3, h4, h5, h6 {
   from { opacity: 0; transform: translate(20px, -50%); }
   to { opacity: 1; transform: translate(0, -50%); }
 }
+
+/* Expanded & Collapsed states */
+.floating-expanded-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1rem;
+  transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), max-height 0.3s ease, visibility 0.3s;
+  max-height: 500px;
+  opacity: 1;
+  transform: scale(1) translateY(0);
+  visibility: visible;
+}
+
+.floating-expanded-controls.hidden {
+  opacity: 0;
+  transform: scale(0.8) translateY(20px);
+  max-height: 0;
+  visibility: hidden;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.floating-toggle-btn {
+  transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.3s;
+  opacity: 1;
+  transform: scale(1);
+  visibility: visible;
+}
+
+.floating-toggle-btn.hidden {
+  opacity: 0;
+  transform: scale(0.8);
+  visibility: hidden;
+  pointer-events: none;
+  position: absolute;
+  bottom: 0;
+}
+
+/* Column Picker Styles */
+.column-picker-container {
+  position: absolute;
+  right: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  margin-right: 1rem;
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  padding: 0.375rem;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+  animation: slide-in-right 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.column-picker-btn {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: transparent;
+  border: 1px solid transparent;
+  color: var(--foreground);
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.column-picker-btn:hover {
+  background-color: var(--surface-hover);
+  color: var(--primary);
+  border-color: var(--border);
+}
+
+.column-picker-btn.active {
+  background-color: var(--primary);
+  color: white;
+  border-color: var(--primary-hover);
+}
+

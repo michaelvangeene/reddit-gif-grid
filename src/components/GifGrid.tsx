@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Loader2, AlertCircle, Shuffle, Play, FastForward, Pause, Plus, LayoutGrid } from "lucide-react";
+import { Loader2, AlertCircle, Shuffle, Play, FastForward, Pause, Plus, LayoutGrid, MoreHorizontal } from "lucide-react";
 
 interface GifGridProps {
   accessToken: string;
@@ -29,6 +29,27 @@ export default function GifGrid({ accessToken }: GifGridProps) {
   const [scrollSpeed, setScrollSpeed] = useState<number>(0);
   const [lastSpeed, setLastSpeed] = useState<number>(2.0);
   const [showSpeedSlider, setShowSpeedSlider] = useState<boolean>(false);
+  const [showColumnPicker, setShowColumnPicker] = useState<boolean>(false);
+  const [showButtons, setShowButtons] = useState<boolean>(true);
+  const hideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const resetHideTimer = useCallback(() => {
+    if (hideTimeoutRef.current) {
+      clearTimeout(hideTimeoutRef.current);
+    }
+    hideTimeoutRef.current = setTimeout(() => {
+      setShowButtons(false);
+    }, 4000);
+  }, []);
+
+  useEffect(() => {
+    if (showButtons) {
+      resetHideTimer();
+    }
+    return () => {
+      if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
+    };
+  }, [showButtons, resetHideTimer]);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const loadingMoreRef = useRef<boolean>(false);
@@ -324,94 +345,127 @@ export default function GifGrid({ accessToken }: GifGridProps) {
       )}
 
       {/* Floating Controls */}
-      <div className="floating-controls">
-        {after && (
-          <button 
-            className="floating-btn"
-            onClick={loadMore}
-            disabled={loadingMore}
-            title="Load More Posts"
-          >
-            {loadingMore ? <Loader2 className="animate-spin" size={24} /> : <Plus size={24} />}
-          </button>
-        )}
+      <div 
+        className="floating-controls"
+        onMouseEnter={resetHideTimer}
+        onMouseMove={resetHideTimer}
+        onClick={resetHideTimer}
+      >
+        <div className={`floating-expanded-controls ${showButtons ? "visible" : "hidden"}`}>
+          {after && (
+            <button 
+              className="floating-btn"
+              onClick={loadMore}
+              disabled={loadingMore}
+              title="Load More Posts"
+            >
+              {loadingMore ? <Loader2 className="animate-spin" size={24} /> : <Plus size={24} />}
+            </button>
+          )}
 
-        <div 
-          style={{ position: 'relative' }}
-          onMouseEnter={() => {
-            if (sliderTimeoutRef.current) clearTimeout(sliderTimeoutRef.current);
-            setShowSpeedSlider(true);
-          }}
-          onMouseLeave={() => {
-            sliderTimeoutRef.current = setTimeout(() => setShowSpeedSlider(false), 2000);
-          }}
-        >
-          <button 
-            className={`floating-btn ${scrollSpeed > 0 ? 'active' : ''}`}
-            onClick={() => {
-              togglePlayPause();
-              setShowSpeedSlider(true);
+          <div 
+            style={{ position: 'relative' }}
+            onMouseEnter={() => {
               if (sliderTimeoutRef.current) clearTimeout(sliderTimeoutRef.current);
+              setShowSpeedSlider(true);
+            }}
+            onMouseLeave={() => {
               sliderTimeoutRef.current = setTimeout(() => setShowSpeedSlider(false), 2000);
             }}
-            title={scrollSpeed > 0 ? "Pause" : "Play"}
           >
-            {scrollSpeed > 0 ? <Pause size={24} /> : <Play size={24} />}
-          </button>
-          
-          {showSpeedSlider && (
-            <div 
-              className="speed-slider-container"
-              onWheel={(e) => {
-                e.preventDefault();
-                const delta = (e.deltaX !== 0 ? e.deltaX : e.deltaY) * -0.01;
-                const currentVal = scrollSpeed > 0 ? scrollSpeed : lastSpeed;
-                const newVal = Math.max(0, Math.min(10, currentVal + delta));
-                setScrollSpeed(Number(newVal.toFixed(1)));
-                if (newVal > 0) setLastSpeed(Number(newVal.toFixed(1)));
-                // Reset auto-hide timer on interaction
+            <button 
+              className={`floating-btn ${scrollSpeed > 0 ? 'active' : ''}`}
+              onClick={() => {
+                togglePlayPause();
+                setShowSpeedSlider(true);
                 if (sliderTimeoutRef.current) clearTimeout(sliderTimeoutRef.current);
                 sliderTimeoutRef.current = setTimeout(() => setShowSpeedSlider(false), 2000);
               }}
+              title={scrollSpeed > 0 ? "Pause" : "Play"}
             >
-              <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>Speed</span>
-              <input 
-                type="range" 
-                min="0" 
-                max="10" 
-                step="0.1"
-                value={scrollSpeed > 0 ? scrollSpeed : lastSpeed}
-                onChange={(e) => {
-                  const val = Number(e.target.value);
-                  setScrollSpeed(val);
-                  if (val > 0) setLastSpeed(val);
-                  // Reset auto-hide timer on interaction
+              {scrollSpeed > 0 ? <Pause size={24} /> : <Play size={24} />}
+            </button>
+            
+            {showSpeedSlider && (
+              <div 
+                className="speed-slider-container"
+                onWheel={(e) => {
+                  e.preventDefault();
+                  const delta = (e.deltaX !== 0 ? e.deltaX : e.deltaY) * -0.01;
+                  const currentVal = scrollSpeed > 0 ? scrollSpeed : lastSpeed;
+                  const newVal = Math.max(0, Math.min(10, currentVal + delta));
+                  setScrollSpeed(Number(newVal.toFixed(1)));
+                  if (newVal > 0) setLastSpeed(Number(newVal.toFixed(1)));
                   if (sliderTimeoutRef.current) clearTimeout(sliderTimeoutRef.current);
                   sliderTimeoutRef.current = setTimeout(() => setShowSpeedSlider(false), 2000);
                 }}
-                style={{ width: '120px', cursor: 'ew-resize' }}
-              />
-              <span style={{ fontSize: '0.8rem', width: '25px', textAlign: 'right' }}>
-                {(scrollSpeed > 0 ? scrollSpeed : lastSpeed).toFixed(1)}
-              </span>
-            </div>
-          )}
+              >
+                <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>Speed</span>
+                <input 
+                  type="range" 
+                  min="0" 
+                  max="10" 
+                  step="0.1"
+                  value={scrollSpeed > 0 ? scrollSpeed : lastSpeed}
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    setScrollSpeed(val);
+                    if (val > 0) setLastSpeed(val);
+                    if (sliderTimeoutRef.current) clearTimeout(sliderTimeoutRef.current);
+                    sliderTimeoutRef.current = setTimeout(() => setShowSpeedSlider(false), 2000);
+                  }}
+                  style={{ width: '120px', cursor: 'ew-resize' }}
+                />
+                <span style={{ fontSize: '0.8rem', width: '25px', textAlign: 'right' }}>
+                  {(scrollSpeed > 0 ? scrollSpeed : lastSpeed).toFixed(1)}
+                </span>
+              </div>
+            )}
+          </div>
+          
+          <div 
+            style={{ position: 'relative' }}
+            onMouseEnter={() => setShowColumnPicker(true)}
+            onMouseLeave={() => setShowColumnPicker(false)}
+          >
+            <button  
+              className="floating-btn"
+              onClick={() => setColumns(prev => prev >= 6 ? 1 : prev + 1)}
+              title={`Columns: ${columns} (Click to change)`}
+            >
+              <LayoutGrid size={24} />
+            </button>
+            
+            {showColumnPicker && (
+              <div className="column-picker-container">
+                {[1, 2, 3, 4, 5, 6].map(num => (
+                  <button
+                    key={num}
+                    className={`column-picker-btn ${columns === num ? 'active' : ''}`}
+                    onClick={() => setColumns(num)}
+                  >
+                    {num}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <button 
+            className="floating-btn"
+            onClick={shufflePosts}
+            title="Randomize Grid"
+          >
+            <Shuffle size={24} />
+          </button>
         </div>
-        
-        <button  
-          className="floating-btn"
-          onClick={() => setColumns(prev => prev >= 8 ? 1 : prev + 1)}
-          title={`Columns: ${columns} (Click to change)`}
-        >
-          <LayoutGrid size={24} />
-        </button>
 
         <button 
-          className="floating-btn"
-          onClick={shufflePosts}
-          title="Randomize Grid"
+          className={`floating-btn floating-toggle-btn ${!showButtons ? 'visible' : 'hidden'}`}
+          onClick={() => setShowButtons(true)}
+          title="Show Controls"
         >
-          <Shuffle size={24} />
+          <MoreHorizontal size={24} />
         </button>
       </div>
     </div>
