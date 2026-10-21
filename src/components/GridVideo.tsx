@@ -118,7 +118,7 @@ export default function GridVideo({ source, originalUrl, audible, onBlocked }: P
 
   return <>
     <video ref={videoRef} src={resolvedSource || undefined} autoPlay loop muted={muted} playsInline preload="metadata" />
-    {audioUrl && <audio ref={audioRef} src={audioUrl} preload="metadata" />}
+    {audioUrl && <audio ref={audioRef} src={audioUrl} loop preload="metadata" />}
     {id && failed && <span role="status" style={statusStyle}>RedGIFs unavailable - preview only</span>}
     {media && !media.hasAudio && <span style={statusStyle}>No audio in this video</span>}
     {noRedditAudio && <span style={statusStyle}>No audio in this video</span>}
