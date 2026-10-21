@@ -5,6 +5,7 @@ import { Loader2, AlertCircle, Shuffle, Play, Pause, Plus, LayoutGrid, MoreHoriz
 
 import GridVideo from "./GridVideo";
 import { redgifsId } from "../lib/redgifs";
+import { collectListing, shuffled } from "../lib/randomize-listing";
 
 interface GifGridProps {
   accessToken: string;
@@ -22,7 +23,25 @@ interface RedditPost {
   domain: string;
 }
 
+function isSupportedMedia(post: RedditPost): boolean {
+  const u = post.url.toLowerCase();
+  const isGif = u.endsWith(".gif") || u.endsWith(".gifv") || u.endsWith(".mp4");
+  const isGfycat = post.domain?.includes("gfycat.com") || post.domain?.includes("redgifs.com");
+  const isImgurGif = post.domain?.includes("imgur.com") && (u.endsWith(".gif") || u.endsWith(".gifv") || u.endsWith(".mp4"));
+  const isRedditVideo = post.is_video || (post.media && post.media.reddit_video);
+  
+  return Boolean(isGif || isGfycat || isImgurGif || isRedditVideo);
+
+}
+
 export default function GifGrid({ accessToken }: GifGridProps) {
+  const [randomizingAll, setRandomizingAll] = useState(false);
+  const [scannedCount, setScannedCount] = useState(0);
+  const [randomizeMessage, setRandomizeMessage] = useState<string | null>(null);
+  const [queuedCount, setQueuedCount] = useState(0);
+  const queuedPostsRef = useRef<RedditPost[]>([]);
+  const randomizeControllerRef = useRef<AbortController | null>(null);
+  useEffect(() => () => randomizeControllerRef.current?.abort(), []);
   const [soundEnabled, setSoundEnabled] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [soundBlocked, setSoundBlocked] = useState(false);
@@ -114,15 +133,7 @@ export default function GifGrid({ accessToken }: GifGridProps) {
       // Filter for GIFs and Videos
       const filteredPosts = data.data.children
         .map((child: { data: RedditPost }) => child.data)
-        .filter((post: RedditPost) => {
-          const u = post.url.toLowerCase();
-          const isGif = u.endsWith(".gif") || u.endsWith(".gifv") || u.endsWith(".mp4");
-          const isGfycat = post.domain?.includes("gfycat.com") || post.domain?.includes("redgifs.com");
-          const isImgurGif = post.domain?.includes("imgur.com") && (u.endsWith(".gif") || u.endsWith(".gifv") || u.endsWith(".mp4"));
-          const isRedditVideo = post.is_video || (post.media && post.media.reddit_video);
-          
-          return isGif || isGfycat || isImgurGif || isRedditVideo;
-        });
+        .filter(isSupportedMedia);
 
       return filteredPosts;
     } catch (err) {
@@ -150,7 +161,14 @@ export default function GifGrid({ accessToken }: GifGridProps) {
   }, [accessToken, fetchUpvoted]);
 
   const loadMore = async () => {
-    if (!username || !after || loadingMoreRef.current) return;
+    if (loadingMoreRef.current || randomizeControllerRef.current) return;
+    if (queuedPostsRef.current.length > 0) {
+      const next = queuedPostsRef.current.splice(0, 50);
+      setPosts(prev => [...prev, ...next]);
+      setQueuedCount(queuedPostsRef.current.length);
+      return;
+    }
+    if (!username || !after) return;
     
     // Update ref immediately to prevent race conditions during auto-scroll
     loadingMoreRef.current = true;
@@ -170,14 +188,61 @@ export default function GifGrid({ accessToken }: GifGridProps) {
   };
 
   const shufflePosts = () => {
-    setPosts(prev => {
-      const shuffled = [...prev];
-      for (let i = shuffled.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    setActiveId(null);
+    setPosts(prev => shuffled(prev));
+  };
+
+  const randomizeAll = async () => {
+    if (!username || loadingMoreRef.current || randomizeControllerRef.current) return;
+    const controller = new AbortController();
+    randomizeControllerRef.current = controller;
+    setRandomizingAll(true);
+    setScannedCount(0);
+    setRandomizeMessage(null);
+    setActiveId(null);
+    if (scrollSpeed > 0) setLastSpeed(scrollSpeed);
+    setScrollSpeed(0);
+    try {
+      const allPosts = await collectListing<RedditPost>(async (cursor, signal) => {
+        const query = new URLSearchParams({ limit: "100", raw_json: "1" });
+        if (cursor) query.set("after", cursor);
+        const response = await fetch(`https://oauth.reddit.com/user/${encodeURIComponent(username)}/upvoted?${query}`, {
+          headers: { Authorization: `Bearer ${accessToken}` }, signal,
+        });
+        if (!response.ok) {
+          throw new Error(response.status === 429
+            ? "Reddit vraagt om even te wachten. Probeer het straks opnieuw."
+            : "De upvotes konden niet worden opgehaald. Probeer opnieuw of log opnieuw in.");
+        }
+        const result = await response.json();
+        if (!Array.isArray(result.data?.children)) throw new Error("Reddit gaf een ongeldige lijst terug.");
+        return {
+          items: result.data.children.map((child: { data: RedditPost }) => child.data),
+          after: result.data.after || null,
+        };
+      }, controller.signal, setScannedCount);
+      const pool = shuffled(allPosts.filter(isSupportedMedia));
+      if (pool.length === 0) {
+        setRandomizeMessage("Geen video's gevonden in de beschikbare upvotes.");
+        return;
       }
-      return shuffled;
-    });
+      // Shuffle the full pool before slicing: old and middle pages have equal chances.
+      queuedPostsRef.current = pool.slice(50);
+      setQueuedCount(queuedPostsRef.current.length);
+      setPosts(pool.slice(0, 50));
+      setAfter(null);
+      afterRef.current = null;
+      setRandomizeMessage(`${pool.length} video's geschud uit ${allPosts.length} beschikbare upvotes. Oudere upvotes kunnen buiten Reddits bereik vallen.`);
+    } catch (error) {
+      if (!controller.signal.aborted) {
+        setRandomizeMessage(error instanceof Error ? error.message : "Ophalen mislukt. Probeer opnieuw.");
+      }
+    } finally {
+      if (randomizeControllerRef.current === controller) {
+        randomizeControllerRef.current = null;
+        if (!controller.signal.aborted) setRandomizingAll(false);
+      }
+    }
   };
 
   const getMediaUrl = (post: RedditPost) => {
@@ -239,7 +304,7 @@ export default function GifGrid({ accessToken }: GifGridProps) {
       if (
         window.innerHeight + window.scrollY >= document.body.offsetHeight - 800 &&
         !loadingMoreRef.current && 
-        afterRef.current
+        (afterRef.current || queuedPostsRef.current.length > 0)
       ) {
         // Trigger load without blocking scroll
         loadMore();
@@ -308,6 +373,19 @@ export default function GifGrid({ accessToken }: GifGridProps) {
         <span role="status">{soundBlocked
           ? "Je browser blokkeert geluid. Klik op de luidspreker bij de video."
           : soundEnabled ? "Geluid speelt alleen bij de video onder je muis." : "Schakel geluid in om het bij hover te horen."}</span>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
+        <button className="btn btn-outline" type="button" onClick={randomizeAll} disabled={randomizingAll || loadingMore}>
+          {randomizingAll ? <Loader2 className="animate-spin" size={18} /> : <Shuffle size={18} />}
+          {randomizingAll ? `Upvotes ophalen: ${scannedCount}` : "Randomize hele lijst"}
+        </button>
+        {randomizingAll && <button className="btn btn-outline" type="button" onClick={() => {
+          randomizeControllerRef.current?.abort();
+          randomizeControllerRef.current = null;
+          setRandomizingAll(false);
+          setRandomizeMessage("Geannuleerd. Je huidige lijst is behouden.");
+        }}>Annuleren</button>}
+        <span role="status" aria-live="polite">{randomizeMessage || "Haalt alle bereikbare upvotes op, ook de nog niet geladen pagina's."}</span>
       </div>
       <div className="masonry-grid" ref={containerRef}>
         {columnData.map((col, colIndex) => (
@@ -389,12 +467,12 @@ export default function GifGrid({ accessToken }: GifGridProps) {
         ))}
       </div>
 
-      {after && (
+      {(after || queuedCount > 0) && (
         <div style={{ display: 'flex', justifyContent: 'center', marginTop: '3rem' }}>
           <button 
             className="btn btn-outline" 
             onClick={loadMore} 
-            disabled={loadingMore}
+            disabled={loadingMore || randomizingAll}
             style={{ minWidth: '200px' }}
           >
             {loadingMore ? <Loader2 className="animate-spin" size={18} /> : "Load More"}
@@ -410,11 +488,11 @@ export default function GifGrid({ accessToken }: GifGridProps) {
         onClick={resetHideTimer}
       >
         <div className={`floating-expanded-controls ${showButtons ? "visible" : "hidden"}`}>
-          {after && (
+          {(after || queuedCount > 0) && (
             <button 
               className="floating-btn"
               onClick={loadMore}
-              disabled={loadingMore}
+              disabled={loadingMore || randomizingAll}
               title="Load More Posts"
             >
               {loadingMore ? <Loader2 className="animate-spin" size={24} /> : <Plus size={24} />}
@@ -512,7 +590,8 @@ export default function GifGrid({ accessToken }: GifGridProps) {
           <button 
             className="floating-btn"
             onClick={shufflePosts}
-            title="Randomize Grid"
+            disabled={randomizingAll}
+            title="Randomize loaded videos"
           >
             <Shuffle size={24} />
           </button>
