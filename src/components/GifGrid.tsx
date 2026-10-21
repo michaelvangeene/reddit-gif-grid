@@ -1,7 +1,10 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Loader2, AlertCircle, Shuffle, Play, FastForward, Pause, Plus, LayoutGrid, MoreHorizontal } from "lucide-react";
+import { Loader2, AlertCircle, Shuffle, Play, Pause, Plus, LayoutGrid, MoreHorizontal, Volume2, VolumeX } from "lucide-react";
+
+import GridVideo from "./GridVideo";
+import { redgifsId } from "../lib/redgifs";
 
 interface GifGridProps {
   accessToken: string;
@@ -13,13 +16,27 @@ interface RedditPost {
   url: string;
   permalink: string;
   subreddit: string;
-  media?: any;
-  preview?: any;
+  media?: { reddit_video?: { fallback_url?: string } };
+  preview?: { reddit_video_preview?: { fallback_url?: string } };
   is_video: boolean;
   domain: string;
 }
 
 export default function GifGrid({ accessToken }: GifGridProps) {
+  const [soundEnabled, setSoundEnabled] = useState(false);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [soundBlocked, setSoundBlocked] = useState(false);
+  const reportBlocked = useCallback(() => setSoundBlocked(true), []);
+  useEffect(() => {
+    const silence = () => setActiveId(null);
+    window.addEventListener("blur", silence);
+    const onVisibility = () => { if (document.hidden) silence(); };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("blur", silence);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, []);
   const [posts, setPosts] = useState<RedditPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -96,7 +113,7 @@ export default function GifGrid({ accessToken }: GifGridProps) {
       
       // Filter for GIFs and Videos
       const filteredPosts = data.data.children
-        .map((child: any) => child.data)
+        .map((child: { data: RedditPost }) => child.data)
         .filter((post: RedditPost) => {
           const u = post.url.toLowerCase();
           const isGif = u.endsWith(".gif") || u.endsWith(".gifv") || u.endsWith(".mp4");
@@ -164,6 +181,9 @@ export default function GifGrid({ accessToken }: GifGridProps) {
   };
 
   const getMediaUrl = (post: RedditPost) => {
+    if (redgifsId(post.url)) {
+      return post.preview?.reddit_video_preview?.fallback_url || "";
+    }
     if (post.is_video && post.media?.reddit_video?.fallback_url) {
       return post.media.reddit_video.fallback_url;
     }
@@ -264,7 +284,7 @@ export default function GifGrid({ accessToken }: GifGridProps) {
     return (
       <div className="empty-state">
         <h2>No GIFs found</h2>
-        <p>We couldn't find any GIFs or videos in your recent upvotes.</p>
+        <p>We couldn&apos;t find any GIFs or videos in your recent upvotes.</p>
       </div>
     );
   }
@@ -276,44 +296,46 @@ export default function GifGrid({ accessToken }: GifGridProps) {
 
   return (
     <div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+        <button className="btn btn-outline" type="button" aria-pressed={soundEnabled} onClick={() => {
+          setSoundEnabled(enabled => !enabled);
+          setSoundBlocked(false);
+        }}>
+          {soundEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
+          {soundEnabled ? "Geluid uitschakelen" : "Geluid inschakelen"}
+        </button>
+        <span role="status">{soundBlocked
+          ? "Je browser blokkeert geluid. Klik op de luidspreker bij de video."
+          : soundEnabled ? "Geluid speelt alleen bij de video onder je muis." : "Schakel geluid in om het bij hover te horen."}</span>
+      </div>
       <div className="masonry-grid" ref={containerRef}>
         {columnData.map((col, colIndex) => (
           <div key={colIndex} className="masonry-grid_column" style={{ width: `${100 / columns}%` }}>
             {col.map(post => {
               const mediaUrl = getMediaUrl(post);
-              const isVideo = mediaUrl.includes(".mp4") || post.is_video;
+              const isVideo = Boolean(redgifsId(post.url)) || mediaUrl.includes(".mp4") || post.is_video;
 
               return (
-                <a 
-                  key={post.id} 
-                  href={`https://reddit.com${post.permalink}`} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
+                <div
+                  key={post.id}
                   className="gif-card"
-                  style={{ display: 'block' }}
-                  onMouseEnter={(e) => {
-                    const video = e.currentTarget.querySelector('video');
-                    if (video) {
-                      video.muted = false;
-                      video.volume = 1.0;
-                      video.play().catch(() => {});
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    const video = e.currentTarget.querySelector('video');
-                    if (video) {
-                      video.muted = true;
-                      video.play().catch(() => {});
+                  style={{ display: 'block', position: 'relative' }}
+                  onMouseEnter={() => setActiveId(post.id)}
+                  onMouseLeave={() => setActiveId(current => current === post.id ? null : current)}
+                  onFocus={() => setActiveId(post.id)}
+                  onBlur={(e) => {
+                    if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+                      setActiveId(current => current === post.id ? null : current);
                     }
                   }}
                 >
+                  <a href={`https://reddit.com${post.permalink}`} target="_blank" rel="noopener noreferrer" style={{ display: 'block' }}>
                   {isVideo ? (
-                    <video 
-                      src={mediaUrl} 
-                      autoPlay 
-                      loop 
-                      muted 
-                      playsInline
+                    <GridVideo
+                      source={mediaUrl}
+                      originalUrl={post.url}
+                      audible={soundEnabled && activeId === post.id}
+                      onBlocked={reportBlocked}
                     />
                   ) : (
                     <img src={mediaUrl} alt={post.title} loading="lazy" />
@@ -324,7 +346,42 @@ export default function GifGrid({ accessToken }: GifGridProps) {
                       <span>r/{post.subreddit}</span>
                     </div>
                   </div>
-                </a>
+                  </a>
+                  {isVideo && (
+                    <button
+                      type="button"
+                      aria-label={soundEnabled && activeId === post.id ? "Mute video" : "Play video with sound"}
+                      title="Click to enable sound for this video"
+                      style={{ position: 'absolute', right: 8, top: 8, zIndex: 2, cursor: 'pointer', background: '#111d', color: 'white', border: 0, borderRadius: 6, padding: 8 }}
+                      onClick={(e) => {
+                        const enable = !(soundEnabled && activeId === post.id && !soundBlocked);
+                        setSoundEnabled(enable);
+                        setActiveId(post.id);
+                        setSoundBlocked(false);
+                        const video = e.currentTarget.parentElement?.querySelector('video');
+                        const audio = e.currentTarget.parentElement?.querySelector('audio');
+                        if (audio && video) {
+                          audio.muted = !enable;
+                          audio.currentTime = video.currentTime;
+                          if (enable) audio.play().catch(() => reportBlocked());
+                          else audio.pause();
+                        }
+                        // Call play synchronously inside the click for browsers requiring a gesture per element.
+                        if (video) {
+                          video.muted = !enable;
+                          video.volume = 1;
+                          video.play().catch(error => {
+                            video.muted = true;
+                            if (enable) reportBlocked();
+                            console.warn('Sound playback was blocked', error);
+                          });
+                        }
+                      }}
+                    >
+                      {soundEnabled && activeId === post.id ? <Volume2 size={18} /> : <VolumeX size={18} />}
+                    </button>
+                  )}
+                </div>
               );
             })}
           </div>
@@ -471,3 +528,4 @@ export default function GifGrid({ accessToken }: GifGridProps) {
     </div>
   );
 }
+
