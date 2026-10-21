@@ -190,6 +190,7 @@ export default function GifGrid({ accessToken }: GifGridProps) {
     if (post.url.endsWith(".gifv")) {
       return post.url.replace(".gifv", ".mp4");
     }
+    if (/\.mp4(?:[?#]|$)/i.test(post.url)) return post.url;
     if (post.preview?.reddit_video_preview?.fallback_url) {
       return post.preview.reddit_video_preview.fallback_url;
     }
