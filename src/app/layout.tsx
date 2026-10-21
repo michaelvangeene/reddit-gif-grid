@@ -5,6 +5,7 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
+  referrer: "no-referrer",
   title: "Reddit Upvoted GIF Grid",
   description: "View your upvoted Reddit GIFs in a beautiful masonry grid",
 };
