@@ -26,6 +26,25 @@ test('navigation covers incomplete final pages and wraps in both directions', ()
   assert.equal(nextGalleryPage(0, 0, -1), 0);
 });
 
+test('navigation honors every window-count option without skipping the last page', () => {
+  for (let size = 1; size <= 6; size++) {
+    const count = 17;
+    const starts: number[] = [];
+    let start = 0;
+    do { starts.push(start); start = nextGalleryPage(start, count, 1, size); } while (start !== 0);
+    const indices = starts.flatMap(first => Array.from({ length: Math.min(size, count - first) }, (_, index) => first + index));
+    assert.deepEqual(indices, Array.from({ length: count }, (_, index) => index));
+    assert.equal(nextGalleryPage(0, count, -1, size), starts.at(-1));
+  }
+});
+
+test('six windows have enough horizontal separation for the frames', () => {
+  const positions = galleryPositions(6);
+  for (let index = 1; index < positions.length; index++) {
+    assert.ok(Math.hypot(positions[index].x - positions[index - 1].x, positions[index].z - positions[index - 1].z) > 1.95);
+  }
+});
+
 test('portrait and landscape videos fit the screen without stretching', () => {
   for (const [width, height] of [[1920, 1080], [1080, 1920], [1000, 1000]]) {
     const fitted = fitVideo(width, height);

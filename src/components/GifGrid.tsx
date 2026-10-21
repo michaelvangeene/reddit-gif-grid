@@ -240,6 +240,7 @@ export default function GifGrid({ accessToken }: GifGridProps) {
       setAfter(null);
       afterRef.current = null;
       setRandomizeMessage(`${pool.length} video's geschud uit ${allPosts.length} beschikbare upvotes. Oudere upvotes kunnen buiten Reddits bereik vallen.`);
+      return pool;
     } catch (error) {
       if (!controller.signal.aborted) {
         setRandomizeMessage(error instanceof Error ? error.message : "Ophalen mislukt. Probeer opnieuw.");
@@ -369,7 +370,12 @@ export default function GifGrid({ accessToken }: GifGridProps) {
 
   return (
     <div>
-      {spatialItems && <SpatialGallery items={spatialItems} onClose={closeSpatial} />}
+      {spatialItems && <SpatialGallery items={spatialItems} onClose={closeSpatial} onShuffleAll={async () => {
+        const pool = await randomizeAll();
+        if (!pool) throw new Error("Ophalen mislukt");
+        return pool.map(post => ({ id: post.id, originalUrl: post.url, source: getMediaUrl(post) }))
+          .filter(item => redgifsId(item.originalUrl) || /\.mp4(?:[?#]|$)/i.test(item.source));
+      }} />}
       <div className="masonry-grid" ref={containerRef}>
         {columnData.map((col, colIndex) => (
           <div key={colIndex} className="masonry-grid_column" style={{ width: `${100 / columns}%` }}>

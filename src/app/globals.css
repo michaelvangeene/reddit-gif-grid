@@ -431,7 +431,7 @@ h1, h2, h3, h4, h5, h6 {
   position: fixed;
   inset: 0;
   z-index: 200;
-  background: #0b0d13;
+  background: #000000;
   display: flex;
   flex-direction: column;
 }
@@ -446,15 +446,18 @@ h1, h2, h3, h4, h5, h6 {
 }
 .spatial-gallery-toolbar strong { margin-right: auto; }
 .spatial-gallery-toolbar .btn:disabled { opacity: 0.45; cursor: not-allowed; }
-.spatial-gallery-canvas { flex: 1; min-height: 0; }
+.spatial-gallery-heading { position: absolute; top: 1rem; left: 1rem; z-index: 1; }
+.spatial-gallery-canvas { position: absolute; inset: 0; }
 .spatial-gallery-canvas canvas { display: block; touch-action: none; }
+.spatial-gallery-controls { display: grid; grid-template-columns: repeat(2, max-content); gap: 0.75rem; }
+.spatial-gallery-controls .column-picker-container { z-index: 2; }
 .spatial-gallery-status {
   position: absolute;
   bottom: 1rem;
   left: 1rem;
-  max-width: min(38rem, calc(100vw - 2rem));
+  max-width: min(38rem, calc(100vw - 12rem));
   padding: 0.6rem 0.8rem;
-  background: #0b0d13cc;
+  background: #000000cc;
   border-radius: 8px;
   font-size: 0.8rem;
   pointer-events: none;
