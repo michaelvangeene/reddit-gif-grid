@@ -38,6 +38,15 @@ test('refreshes an expired token once and supports SD and silent originals', asy
   assert.equal(tokens, 2);
 });
 
+test('VR can prefer a smaller SD video while the normal grid keeps HD', async () => {
+  const request = (async (input) => Response.json(String(input).endsWith('/temporary')
+    ? { token: 'test' }
+    : { gif: { hasAudio: true, urls: { hd: 'https://media.redgifs.com/Example.mp4', sd: 'https://media.redgifs.com/Example-mobile.mp4' } } })) as typeof fetch;
+  const resolve = createRedgifsResolver(request);
+  assert.equal((await resolve('example', 'sd')).url, 'https://media.redgifs.com/Example-mobile.mp4');
+  assert.equal((await resolve('example')).url, 'https://media.redgifs.com/Example.mp4');
+});
+
 test('rejects invalid IDs without fetching, upstream failures, and untrusted media URLs', async () => {
   const resolve = createRedgifsResolver((async () => { throw new Error('must not fetch'); }) as typeof fetch);
   await assert.rejects(resolve('../other'), /Invalid/);

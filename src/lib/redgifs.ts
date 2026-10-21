@@ -32,7 +32,7 @@ export function createRedgifsResolver(request: typeof fetch = fetch) {
     })();
     try { return await tokenRequest; } finally { tokenRequest = undefined; }
   }
-  return async function resolve(id: string): Promise<RedgifsMedia> {
+  return async function resolve(id: string, quality: 'hd' | 'sd' = 'hd'): Promise<RedgifsMedia> {
     if (!/^[a-z0-9]{1,100}$/i.test(id)) throw new Error('Invalid RedGIFs ID');
     for (let attempt = 0; attempt < 2; attempt++) {
       const bearer = await getToken();
@@ -47,7 +47,7 @@ export function createRedgifsResolver(request: typeof fetch = fetch) {
       if (!response.ok) throw new Error('RedGIFs video unavailable');
       const { gif } = await response.json();
       // Never select urls.silent: it explicitly omits the audio track.
-      const source = gif?.urls?.hd || gif?.urls?.sd;
+      const source = quality === 'sd' ? gif?.urls?.sd || gif?.urls?.hd : gif?.urls?.hd || gif?.urls?.sd;
       if (typeof source !== 'string') throw new Error('Missing RedGIFs video');
       const url = new URL(source);
       if (url.protocol !== 'https:' || !url.hostname.endsWith('.redgifs.com') || !url.pathname.endsWith('.mp4')) {

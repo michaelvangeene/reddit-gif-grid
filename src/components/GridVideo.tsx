@@ -8,10 +8,11 @@ interface Props {
   source: string;
   originalUrl: string;
   audible: boolean;
+  suspended?: boolean;
   onBlocked: () => void;
 }
 
-export default function GridVideo({ source, originalUrl, audible, onBlocked }: Props) {
+export default function GridVideo({ source, originalUrl, audible, onBlocked, suspended = false }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const id = redgifsId(originalUrl);
@@ -37,7 +38,7 @@ export default function GridVideo({ source, originalUrl, audible, onBlocked }: P
   useEffect(() => {
     const video = videoRef.current;
     const audio = audioRef.current;
-    if (!video || !audio || !audioUrl || !audible) {
+    if (!video || !audio || !audioUrl || !audible || suspended) {
       audio?.pause();
       return;
     }
@@ -71,7 +72,7 @@ export default function GridVideo({ source, originalUrl, audible, onBlocked }: P
       video.removeEventListener('seeking', seek);
       video.removeEventListener('timeupdate', seek);
     };
-  }, [audioUrl, audible, onBlocked]);
+  }, [audioUrl, audible, onBlocked, suspended]);
 
   useEffect(() => {
     if (!id || !videoRef.current) return;
@@ -103,6 +104,7 @@ export default function GridVideo({ source, originalUrl, audible, onBlocked }: P
     let cancelled = false;
     video.muted = muted;
     video.volume = 1;
+    if (suspended) { video.pause(); return; }
     video.play().catch(error => {
       if (cancelled) return;
       if (!muted) {
@@ -114,7 +116,7 @@ export default function GridVideo({ source, originalUrl, audible, onBlocked }: P
       }
     });
     return () => { cancelled = true; };
-  }, [muted, resolvedSource, onBlocked]);
+  }, [muted, resolvedSource, onBlocked, suspended]);
 
   return <>
     <video ref={videoRef} src={resolvedSource || undefined} autoPlay loop muted={muted} playsInline preload="metadata" />

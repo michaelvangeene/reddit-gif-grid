@@ -1,11 +1,15 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Loader2, AlertCircle, Shuffle, Play, Pause, Plus, LayoutGrid, MoreHorizontal, Volume2, VolumeX, X } from "lucide-react";
+import dynamic from "next/dynamic";
+import type { SpatialMedia } from "./SpatialGallery";
+import { Loader2, AlertCircle, Shuffle, Play, Pause, Plus, LayoutGrid, MoreHorizontal, Volume2, VolumeX, X, Glasses } from "lucide-react";
 
 import GridVideo from "./GridVideo";
 import { redgifsId } from "../lib/redgifs";
 import { collectListing, shuffled } from "../lib/randomize-listing";
+
+const SpatialGallery = dynamic(() => import("./SpatialGallery"), { ssr: false });
 
 interface GifGridProps {
   accessToken: string;
@@ -35,6 +39,8 @@ function isSupportedMedia(post: RedditPost): boolean {
 }
 
 export default function GifGrid({ accessToken }: GifGridProps) {
+  const [spatialItems, setSpatialItems] = useState<SpatialMedia[] | null>(null);
+  const closeSpatial = useCallback(() => setSpatialItems(null), []);
   const [randomizingAll, setRandomizingAll] = useState(false);
   const [scannedCount, setScannedCount] = useState(0);
   const [randomizeMessage, setRandomizeMessage] = useState<string | null>(null);
@@ -363,6 +369,7 @@ export default function GifGrid({ accessToken }: GifGridProps) {
 
   return (
     <div>
+      {spatialItems && <SpatialGallery items={spatialItems} onClose={closeSpatial} />}
       <div className="masonry-grid" ref={containerRef}>
         {columnData.map((col, colIndex) => (
           <div key={colIndex} className="masonry-grid_column" style={{ width: `${100 / columns}%` }}>
@@ -390,6 +397,7 @@ export default function GifGrid({ accessToken }: GifGridProps) {
                       source={mediaUrl}
                       originalUrl={post.url}
                       audible={soundEnabled && activeId === post.id}
+                      suspended={spatialItems !== null}
                       onBlocked={reportBlocked}
                     />
                   ) : (
@@ -470,6 +478,13 @@ export default function GifGrid({ accessToken }: GifGridProps) {
           </div>
         )}
         <div className={`floating-expanded-controls ${showButtons ? "visible" : "hidden"}`}>
+          <button className="floating-btn" type="button" aria-label="Open ruimtelijke galerij" title="Ruimtelijke galerij / Meta Quest VR" onClick={() => {
+            const media = [...posts, ...queuedPostsRef.current].map(post => ({
+              id: post.id, originalUrl: post.url, source: getMediaUrl(post),
+            })).filter(item => redgifsId(item.originalUrl) || /\.mp4(?:[?#]|$)/i.test(item.source));
+            if (!media.length) { setRandomizeMessage("Geen geschikte video's voor de ruimtelijke galerij."); return; }
+            setActiveId(null); setScrollSpeed(0); setSpatialItems(media);
+          }}><Glasses size={24} /></button>
           <button
             className={`floating-btn ${soundEnabled ? "active" : ""}`}
             type="button"
