@@ -353,7 +353,7 @@ export default function GifGrid({ accessToken }: GifGridProps) {
                       type="button"
                       aria-label={soundEnabled && activeId === post.id ? "Mute video" : "Play video with sound"}
                       title="Click to enable sound for this video"
-                      style={{ position: 'absolute', right: 8, top: 8, zIndex: 2, cursor: 'pointer', background: '#111d', color: 'white', border: 0, borderRadius: 6, padding: 8 }}
+                      style={{ position: 'absolute', right: 8, top: 8, zIndex: 2, cursor: 'pointer', background: 'transparent', color: 'white', border: 0, borderRadius: 6, padding: 8 }}
                       onClick={(e) => {
                         const enable = !(soundEnabled && activeId === post.id && !soundBlocked);
                         setSoundEnabled(enable);
