@@ -413,7 +413,7 @@ export default function SpatialGallery({ items, onClose, onShuffleAll }: Props) 
     <div className="floating-controls spatial-gallery-controls">
       <button className={`floating-btn ${inVR ? 'active' : ''}`} type="button" disabled={!supported || !ready || inVR} aria-label="Start VR" title={supported ? 'Start VR op je Quest' : 'Open deze site op je Meta Quest om VR te starten'} onClick={startVR}><Glasses size={24} /></button>
       <button className={`floating-btn ${soundOn ? 'active' : ''}`} type="button" aria-label={soundOn ? 'Geluid uitschakelen' : 'Geluid inschakelen'} title="Geluid aan / uit" onClick={() => actionsRef.current?.sound()}>{soundOn ? <Volume2 size={24} /> : <VolumeX size={24} />}</button>
-      <button className={`floating-btn ${playing ? 'active' : ''}`} type="button" aria-label={playing ? 'Video's pauzeren' : 'Video's afspelen'} title={playing ? 'Pauzeren' : 'Afspelen'} onClick={() => actionsRef.current?.playback()}>{playing ? <Pause size={24} /> : <Play size={24} />}</button>
+      <button className={`floating-btn ${playing ? 'active' : ''}`} type="button" aria-label={playing ? "Video's pauzeren" : "Video's afspelen"} title={playing ? 'Pauzeren' : 'Afspelen'} onClick={() => actionsRef.current?.playback()}>{playing ? <Pause size={24} /> : <Play size={24} />}</button>
       <div style={{ position: 'relative' }}>
         <button className="floating-btn floating-shuffle-all" type="button" aria-label="Aantal vensters" aria-expanded={showCountPicker} title={`Aantal vensters: ${windowCount}`} onClick={() => setShowCountPicker(value => !value)}><LayoutGrid size={24} /><span className="floating-btn-badge">{windowCount}</span></button>
         {showCountPicker && <div className="column-picker-container">{[1,2,3,4,5,6].map(value => <button className={`column-picker-btn ${windowCount === value ? 'active' : ''}`} type="button" key={value} aria-label={`${value} vensters`} onClick={() => { actionsRef.current?.count(value); setShowCountPicker(false); }}>{value}</button>)}</div>}
@@ -428,3 +428,4 @@ export default function SpatialGallery({ items, onClose, onShuffleAll }: Props) 
     <p className="spatial-gallery-status" role="status">{status}<br />Sleep een scherm met de muis; sleep de achtergrond om rond te kijken. In VR: richt op een scherm en houd de gripknop vast.{!supported && <><br />Voor VR: open deze site in de browser van je Meta Quest 3 en log in.</>}</p>
   </div>;
 }
+
