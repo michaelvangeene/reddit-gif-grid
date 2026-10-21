@@ -467,11 +467,24 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Larger menu target on mobile screens. */
 @media (max-width: 768px) {
-  .floating-toggle-btn {
-    width: 4.5rem;
-    height: 4.5rem;
+  .floating-controls .floating-btn {
+    width: 56px;
+    height: 56px;
     flex-shrink: 0;
     touch-action: manipulation;
+  }
+
+  .floating-controls .floating-toggle-btn {
+    width: 72px;
+    height: 72px;
+  }
+
+  .floating-expanded-controls {
+    display: grid;
+    grid-template-columns: repeat(2, 56px);
+    gap: 12px;
+    max-height: calc(100dvh - 80px);
+    align-items: center;
   }
 
   .floating-toggle-btn svg {
