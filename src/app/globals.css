@@ -387,3 +387,42 @@ h1, h2, h3, h4, h5, h6 {
   border-color: var(--primary-hover);
 }
 
+
+/* Additional controls use the same circular buttons. */
+.floating-shuffle-all { position: relative; }
+.floating-btn-badge {
+  position: absolute;
+  bottom: 3px;
+  font-size: 8px;
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.floating-btn:disabled {
+  opacity: 0.5;
+  cursor: wait;
+  transform: none;
+}
+.floating-btn:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 4px;
+}
+.floating-feedback {
+  position: absolute;
+  right: calc(100% + 1rem);
+  bottom: 0;
+  width: 300px;
+  max-width: calc(100vw - 8.5rem);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+.floating-feedback span { display: block; }
+@media (max-height: 650px) {
+  .floating-expanded-controls { gap: 0.5rem; }
+  .floating-btn { width: 3rem; height: 3rem; }
+}

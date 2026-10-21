@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Loader2, AlertCircle, Shuffle, Play, Pause, Plus, LayoutGrid, MoreHorizontal, Volume2, VolumeX } from "lucide-react";
+import { Loader2, AlertCircle, Shuffle, Play, Pause, Plus, LayoutGrid, MoreHorizontal, Volume2, VolumeX, X } from "lucide-react";
 
 import GridVideo from "./GridVideo";
 import { redgifsId } from "../lib/redgifs";
@@ -74,7 +74,7 @@ export default function GifGrid({ accessToken }: GifGridProps) {
       clearTimeout(hideTimeoutRef.current);
     }
     hideTimeoutRef.current = setTimeout(() => {
-      setShowButtons(false);
+      if (!randomizeControllerRef.current) setShowButtons(false);
     }, 4000);
   }, []);
 
@@ -85,7 +85,7 @@ export default function GifGrid({ accessToken }: GifGridProps) {
     return () => {
       if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
     };
-  }, [showButtons, resetHideTimer]);
+  }, [showButtons, resetHideTimer, randomizingAll]);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const loadingMoreRef = useRef<boolean>(false);
@@ -197,6 +197,7 @@ export default function GifGrid({ accessToken }: GifGridProps) {
     const controller = new AbortController();
     randomizeControllerRef.current = controller;
     setRandomizingAll(true);
+    setShowButtons(true);
     setScannedCount(0);
     setRandomizeMessage(null);
     setActiveId(null);
@@ -362,31 +363,6 @@ export default function GifGrid({ accessToken }: GifGridProps) {
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-        <button className="btn btn-outline" type="button" aria-pressed={soundEnabled} onClick={() => {
-          setSoundEnabled(enabled => !enabled);
-          setSoundBlocked(false);
-        }}>
-          {soundEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
-          {soundEnabled ? "Geluid uitschakelen" : "Geluid inschakelen"}
-        </button>
-        <span role="status">{soundBlocked
-          ? "Je browser blokkeert geluid. Klik op de luidspreker bij de video."
-          : soundEnabled ? "Geluid speelt alleen bij de video onder je muis." : "Schakel geluid in om het bij hover te horen."}</span>
-      </div>
-      <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
-        <button className="btn btn-outline" type="button" onClick={randomizeAll} disabled={randomizingAll || loadingMore}>
-          {randomizingAll ? <Loader2 className="animate-spin" size={18} /> : <Shuffle size={18} />}
-          {randomizingAll ? `Upvotes ophalen: ${scannedCount}` : "Randomize hele lijst"}
-        </button>
-        {randomizingAll && <button className="btn btn-outline" type="button" onClick={() => {
-          randomizeControllerRef.current?.abort();
-          randomizeControllerRef.current = null;
-          setRandomizingAll(false);
-          setRandomizeMessage("Geannuleerd. Je huidige lijst is behouden.");
-        }}>Annuleren</button>}
-        <span role="status" aria-live="polite">{randomizeMessage || "Haalt alle bereikbare upvotes op, ook de nog niet geladen pagina's."}</span>
-      </div>
       <div className="masonry-grid" ref={containerRef}>
         {columnData.map((col, colIndex) => (
           <div key={colIndex} className="masonry-grid_column" style={{ width: `${100 / columns}%` }}>
@@ -487,7 +463,45 @@ export default function GifGrid({ accessToken }: GifGridProps) {
         onMouseMove={resetHideTimer}
         onClick={resetHideTimer}
       >
+        {(showButtons || randomizingAll) && (randomizingAll || randomizeMessage || soundBlocked) && (
+          <div className="floating-feedback" role="status" aria-live="polite">
+            {randomizingAll ? `Upvotes ophalen: ${scannedCount}` : randomizeMessage}
+            {soundBlocked && <span>Je browser blokkeert geluid. Klik op de luidspreker bij de video.</span>}
+          </div>
+        )}
         <div className={`floating-expanded-controls ${showButtons ? "visible" : "hidden"}`}>
+          <button
+            className={`floating-btn ${soundEnabled ? "active" : ""}`}
+            type="button"
+            aria-label={soundEnabled ? "Geluid uitschakelen" : "Geluid inschakelen"}
+            title={soundEnabled ? "Geluid uitschakelen" : "Geluid inschakelen bij hover"}
+            aria-pressed={soundEnabled}
+            onClick={() => {
+              setSoundEnabled(enabled => !enabled);
+              setSoundBlocked(false);
+            }}
+          >
+            {soundEnabled ? <Volume2 size={24} /> : <VolumeX size={24} />}
+          </button>
+          <button
+            className="floating-btn floating-shuffle-all"
+            type="button"
+            aria-label="Randomize hele lijst"
+            title="Randomize alle bereikbare upvotes"
+            onClick={randomizeAll}
+            disabled={randomizingAll || loadingMore}
+          >
+            {randomizingAll ? <Loader2 className="animate-spin" size={24} /> : <Shuffle size={24} />}
+            <span className="floating-btn-badge" aria-hidden="true">ALL</span>
+          </button>
+          {randomizingAll && (
+            <button className="floating-btn" type="button" aria-label="Ophalen annuleren" title="Ophalen annuleren" onClick={() => {
+              randomizeControllerRef.current?.abort();
+              randomizeControllerRef.current = null;
+              setRandomizingAll(false);
+              setRandomizeMessage("Geannuleerd. Je huidige lijst is behouden.");
+            }}><X size={24} /></button>
+          )}
           {(after || queuedCount > 0) && (
             <button 
               className="floating-btn"
