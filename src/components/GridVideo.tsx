@@ -21,6 +21,27 @@ export default function GridVideo({ source, originalUrl, audible, onBlocked, sus
   const [noRedditAudio, setNoRedditAudio] = useState(false);
   const [media, setMedia] = useState<RedgifsMedia | null>(null);
   const [failed, setFailed] = useState(false);
+  const [aspectRatio, setAspectRatio] = useState(1);
+  const [nearViewport, setNearViewport] = useState(false);
+  const [pageVisible, setPageVisible] = useState(true);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    const observer = new IntersectionObserver(([entry]) => {
+      setNearViewport(entry.isIntersecting);
+    }, { rootMargin: '100px' });
+    observer.observe(video);
+    const onVisibility = () => setPageVisible(!document.hidden);
+    onVisibility();
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      observer.disconnect();
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, []);
+
+  const shouldLoad = nearViewport && pageVisible && !suspended;
 
   useEffect(() => {
     if (!redditId || !audible || audioUrl || noRedditAudio) return;
@@ -38,7 +59,7 @@ export default function GridVideo({ source, originalUrl, audible, onBlocked, sus
   useEffect(() => {
     const video = videoRef.current;
     const audio = audioRef.current;
-    if (!video || !audio || !audioUrl || !audible || suspended) {
+    if (!video || !audio || !audioUrl || !audible || !shouldLoad) {
       audio?.pause();
       return;
     }
@@ -72,28 +93,26 @@ export default function GridVideo({ source, originalUrl, audible, onBlocked, sus
       video.removeEventListener('seeking', seek);
       video.removeEventListener('timeupdate', seek);
     };
-  }, [audioUrl, audible, onBlocked, suspended]);
+  }, [audioUrl, audible, onBlocked, shouldLoad]);
 
   useEffect(() => {
-    if (!id || !videoRef.current) return;
-    let cancelled = false;
+    if (!id || !shouldLoad || media || failed) return;
     const controller = new AbortController();
-    const observer = new IntersectionObserver(([entry]) => {
-      if (!entry.isIntersecting) return;
-      observer.disconnect();
-      fetch(`/api/redgifs/${id}`, { signal: controller.signal })
-        .then(async response => {
-          if (!response.ok) throw new Error('RedGIFs source unavailable');
-          return response.json() as Promise<RedgifsMedia>;
-        })
-        .then(result => { if (!cancelled) setMedia(result); })
-        .catch(error => {
-          if (!cancelled) { console.warn('RedGIFs source could not be loaded', error); setFailed(true); }
-        });
-    }, { rootMargin: '300px' });
-    observer.observe(videoRef.current);
-    return () => { cancelled = true; observer.disconnect(); controller.abort(); };
-  }, [id]);
+    const quality = window.matchMedia('(max-width: 768px)').matches ? '?quality=sd' : '';
+    fetch(`/api/redgifs/${id}${quality}`, { signal: controller.signal })
+      .then(async response => {
+        if (!response.ok) throw new Error('RedGIFs source unavailable');
+        return response.json() as Promise<RedgifsMedia>;
+      })
+      .then(result => { if (!controller.signal.aborted) setMedia(result); })
+      .catch(error => {
+        if (!controller.signal.aborted) {
+          console.warn('RedGIFs source could not be loaded', error);
+          setFailed(true);
+        }
+      });
+    return () => controller.abort();
+  }, [id, shouldLoad, media, failed]);
 
   const resolvedSource = media?.url || source;
   // A failed resolver/preview must never masquerade as an audio-capable RedGIFs source.
@@ -104,7 +123,7 @@ export default function GridVideo({ source, originalUrl, audible, onBlocked, sus
     let cancelled = false;
     video.muted = muted;
     video.volume = 1;
-    if (suspended) { video.pause(); return; }
+    if (!shouldLoad) { video.pause(); video.load(); return; }
     video.play().catch(error => {
       if (cancelled) return;
       if (!muted) {
@@ -116,11 +135,14 @@ export default function GridVideo({ source, originalUrl, audible, onBlocked, sus
       }
     });
     return () => { cancelled = true; };
-  }, [muted, resolvedSource, onBlocked, suspended]);
+  }, [muted, resolvedSource, onBlocked, shouldLoad]);
 
   return <>
-    <video ref={videoRef} src={resolvedSource || undefined} autoPlay loop muted={muted} playsInline preload="metadata" />
-    {audioUrl && <audio ref={audioRef} src={audioUrl} loop preload="metadata" />}
+    <video ref={videoRef} src={shouldLoad ? resolvedSource || undefined : undefined} loop muted={muted} playsInline preload="none" style={{ aspectRatio }} onLoadedMetadata={event => {
+      const video = event.currentTarget;
+      if (video.videoWidth && video.videoHeight) setAspectRatio(video.videoWidth / video.videoHeight);
+    }} />
+    {audioUrl && shouldLoad && <audio ref={audioRef} src={audioUrl} loop preload="metadata" />}
     {id && failed && <span role="status" style={statusStyle}>RedGIFs unavailable - preview only</span>}
     {media && !media.hasAudio && <span style={statusStyle}>No audio in this video</span>}
     {noRedditAudio && <span style={statusStyle}>No audio in this video</span>}
