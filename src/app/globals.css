@@ -479,6 +479,9 @@ h1, h2, h3, h4, h5, h6 {
     height: 25vw;
     min-width: 25vw;
     min-height: 25vw;
+    background-color: transparent;
+    border-color: transparent;
+    box-shadow: none;
   }
 
   .floating-expanded-controls {
