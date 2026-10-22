@@ -270,7 +270,11 @@ export default function GifGrid({ accessToken }: GifGridProps) {
     return post.url;
   };
 
-  const [columns, setColumns] = useState(3);
+  const [columns, setColumns] = useState(2);
+
+  useEffect(() => {
+    setColumns(window.matchMedia("(max-width: 768px)").matches ? 2 : 3);
+  }, []);
 
   // Auto Scroll Logic
   useEffect(() => {
